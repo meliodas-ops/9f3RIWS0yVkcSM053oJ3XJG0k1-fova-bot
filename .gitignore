@@ -2,3 +2,5 @@
 node_modules
 bot.db
 deploy-cmds.js
+bot.db-shm
+bot.db-wal
