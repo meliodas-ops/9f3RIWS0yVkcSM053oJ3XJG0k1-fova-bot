@@ -2,14 +2,16 @@ const { Events, MessageFlags } = require('discord.js');
 const { recordMessage } = require('../../utils/streak');
 const {
     grantXp,
-    BASE_XP_PER_MESSAGE,
     BOOSTER_ROLE_ID,
     VANITY_ROLE_ID,
+    isOnMessageCooldown,
+    markMessageXpAward,
+    randomBaseXp,
 } = require('../../utils/xp');
 const { grantRolesForLevel } = require('../../utils/roles');
 const { buildPngEmbed } = require('../../utils/pngEmbed');
 
-const MAIN_CHANNEL_ID = '1570565930377805954';
+const MAIN_CHANNEL_ID = '1570493426041098363';
 const PNG_REGEX = /\bPNG\b/i;
 
 module.exports = {
@@ -19,7 +21,7 @@ module.exports = {
         if (!message.guild) return;
         if (message.channel.id !== MAIN_CHANNEL_ID) return;
 
-        // ── PNG trigger ─────────────────────────────────────────
+        // ── PNG trigger (always, regardless of cooldown) ────────
         if (PNG_REGEX.test(message.content)) {
             try {
                 await message.reply({
@@ -32,7 +34,7 @@ module.exports = {
             }
         }
 
-        // ── Streak ─────────────────────────────────────────────
+        // ── Streak + daily count (always) ───────────────────────
         const { streak, reset } = recordMessage(message.guild.id, message.author.id);
         if (reset) {
             message.channel.send({
@@ -40,17 +42,25 @@ module.exports = {
             }).catch(() => { });
         }
 
-        // ── XP ─────────────────────────────────────────────────
+        // ── XP (cooldown-gated) ─────────────────────────────────
+        if (isOnMessageCooldown(message.guild.id, message.author.id)) return;
+
         const member = message.member;
         const roles = member?.roles?.cache;
         const isBooster = roles?.has(BOOSTER_ROLE_ID) ?? false;
         const hasVanity = roles?.has(VANITY_ROLE_ID) ?? false;
 
-        const result = grantXp(message.guild.id, message.author.id, BASE_XP_PER_MESSAGE, {
+        const base = randomBaseXp();
+        const result = grantXp(message.guild.id, message.author.id, base, {
             isBooster,
             hasVanity,
             streak,
         });
+
+        // Only start the cooldown when XP was actually awarded
+        if (result.xpGained > 0) {
+            markMessageXpAward(message.guild.id, message.author.id);
+        }
 
         if (result.leveledUp && member) {
             const added = await grantRolesForLevel(member, result.newLevel);
