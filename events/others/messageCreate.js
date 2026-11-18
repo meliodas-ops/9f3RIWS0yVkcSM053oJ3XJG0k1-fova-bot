@@ -11,7 +11,7 @@ const {
 const { grantRolesForLevel } = require('../../utils/roles');
 const { buildPngEmbed } = require('../../utils/pngEmbed');
 
-const MAIN_CHANNEL_ID = '1570493426041098363';
+const MAIN_CHANNEL_ID = '1570565930377805954';
 const PNG_REGEX = /\bPNG\b/i;
 
 module.exports = {
